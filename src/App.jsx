@@ -11,6 +11,38 @@ const AXIS = {
   HQ:['열반응','안정']
 }
 
+const WEATHER_META = {
+  sleep:{title:'수면',icon:'😴'},
+  dehydration:{title:'피부 당김',icon:'💧'},
+  trouble:{title:'트러블',icon:'🔴'},
+  heat:{title:'열감',icon:'🔥'},
+  stress:{title:'스트레스',icon:'⚡'},
+  new_product:{title:'새 제품 사용',icon:'🧴'}
+}
+
+const TYPE64_INFO = {
+  OD:{O:['유분',"코와 이마를 중심으로 유분이 쉽게 느껴지는 타입이에요."],D:['건조',"세안 후 당김이 느껴지고 유수분이 부족해지기 쉬운 타입이에요."]},
+  SR:{S:['민감',"새로운 성분이나 자극에 피부가 예민하게 반응하는 편이에요."],R:['저민감',"웬만한 자극에는 비교적 안정적으로 버티는 편이에요."]},
+  PN:{P:['색소흔적',"트러블이나 자극이 지나간 자리에 흔적이 잘 남는 편이에요."],N:['비색소',"트러블이 가라앉으면 흔적 없이 비교적 빨리 회복되는 편이에요."]},
+  WT:{W:['노화징후',"잔주름이나 탄력 저하 신호가 비교적 먼저 나타나는 편이에요."],T:['탄력안정',"탄력이 비교적 안정적으로 유지되는 편이에요."]},
+  CB:{C:['모공막힘',"모공이 막히거나 트러블로 이어지기 쉬운 편이에요."],B:['밸런스',"모공 트러블보다는 유수분 밸런스가 관건인 편이에요."]},
+  HQ:{H:['열반응',"열과 자극에 쉽게 붉어지거나 화끈거리는 편이에요."],Q:['안정',"온도 변화에도 비교적 안정적인 편이에요."]}
+}
+
+const INSIGHT_RULES = [
+  {key:'fragrance', test:a=>a.tags.fragrance>=2, title:'향 민감 반응이 보여요', desc:'향이 강한 제품이나 향료·에센셜오일이 포함된 제품은 제품 선택 시 우선 확인하는 것이 좋아요.'},
+  {key:'alcohol', test:a=>a.tags.alcohol>=2, title:'알코올 성분에 민감해요', desc:'알코올감이 강한 토너나 선제품은 따갑거나 건조해질 수 있어 저자극 제형을 우선 확인해보세요.'},
+  {key:'barrier', test:a=>a.tags.barrier>=2, title:'피부 장벽이 예민한 편이에요', desc:'컨디션이 안 좋은 날은 평소 쓰던 제품도 자극이 될 수 있어요. 장벽 강화 케어를 함께 챙겨보세요.'},
+  {key:'exfoliation', test:a=>a.tags.exfoliation>=2, title:'각질 케어 후 회복이 느려요', desc:'필링이나 각질 제거 제품은 사용 빈도를 낮추고 회복 시간을 충분히 두는 것이 좋아요.'},
+  {key:'environment', test:a=>a.tags.environment>=2, title:'냉난방·건조한 환경에 약해요', desc:'실내외 온습도 변화가 큰 날엔 보습 케어를 더 신경 써주세요.'},
+  {key:'friction', test:a=>a.tags.friction>=2, title:'마찰에 쉽게 반응해요', desc:'수건이나 마스크 등으로 인한 마찰을 줄이는 습관이 붉어짐 예방에 도움이 돼요.'},
+  {key:'combo', test:a=>(a.tags.combo_skin>=2||a.tags.dehydrated_oily>=2), title:'수분부족지성·복합성 신호가 보여요', desc:'겉은 번들거려도 속은 건조할 수 있어요. 부위별로 다른 케어가 필요할 수 있어요.'},
+  {key:'trouble', test:a=>a.weather.trouble?.score>=2, title:'최근 트러블이 늘었어요', desc:'최근 1주일 사이 트러블이 늘었다고 답했어요. 자극이 적은 진정 케어를 우선해보세요.'},
+  {key:'stress', test:a=>a.weather.stress?.score>=2, title:'스트레스로 컨디션이 흔들리고 있어요', desc:'스트레스는 피부 장벽과 유수분 균형에 영향을 줄 수 있어요.'},
+  {key:'sleep', test:a=>a.weather.sleep?.score>=2, title:'수면 부족이 피부에 영향을 주고 있어요', desc:'수면 부족은 탄력 저하와 칙칙함으로 이어지기 쉬워요. 컨디션 회복 케어가 도움이 돼요.'},
+  {key:'new_product', test:a=>a.weather.new_product?.score>=2, title:'최근 사용한 새 제품의 영향일 수 있어요', desc:'최근 2주 안에 여러 제품을 바꿨다면, 지금의 반응이 그 영향일 가능성이 있어요.'}
+]
+
 const chunk = (arr, size=2) => arr.reduce((acc,_,i)=>(i%size?acc: [...acc, arr.slice(i,i+size)]),[])
 
 function pct(sum,count){
@@ -49,7 +81,7 @@ export default function App(){
       const picked=answers[q.text]
       if(picked===undefined) return
       const opt=q.options[picked]
-      if(q.state) weather[q.axis]=opt.score
+      if(q.state) weather[q.axis]={score:opt.score,label:opt.label}
       else if(sums[q.axis]!==undefined){
         sums[q.axis]+=opt.score; counts[q.axis]++
         if(q.tag) tags[q.tag]=opt.score
@@ -59,7 +91,9 @@ export default function App(){
     Object.keys(sums).forEach(k=>p[k]=pct(sums[k],counts[k]))
     const type16=(p.OD>=50?'O':'D')+(p.SR>=50?'S':'R')+(p.PN>=50?'P':'N')+(p.WT>=50?'W':'T')
     const type64=type16+(p.CB>=50?'C':'B')+(p.HQ>=50?'H':'Q')
-    return {p,type16,type64,weather,tags}
+    const result={p,type16,type64,weather,tags}
+    result.insights=INSIGHT_RULES.filter(r=>r.test(result))
+    return result
   },[answers])
 
   const choose=(q,i)=>setAnswers(v=>({...v,[q.text]:i}))
@@ -181,10 +215,25 @@ export default function App(){
           </div>)}
         </div>
 
-        {analysis.tags.fragrance >= 2 && <div className="insight-card">
-          <b>향 민감 반응이 보여요</b>
-          <p>향이 강한 제품이나 향료·에센셜오일이 포함된 제품은 제품 선택 시 우선 확인하는 것이 좋아요.</p>
+        {Object.keys(analysis.weather).length > 0 && <div className="weather-panel">
+          <div className="weather-panel-title">Skin Weather · 최근 컨디션</div>
+          <div className="weather-grid">
+            {Object.entries(analysis.weather).map(([axis,w])=>{
+              const meta=WEATHER_META[axis]
+              if(!meta) return null
+              return <div className="weather-row" key={axis}>
+                <span className="weather-icon">{meta.icon}</span>
+                <span className="weather-title">{meta.title}</span>
+                <span className="weather-value">{w.label}</span>
+              </div>
+            })}
+          </div>
         </div>}
+
+        {analysis.insights.slice(0,4).map(ins=><div className="insight-card" key={ins.key}>
+          <b>{ins.title}</b>
+          <p>{ins.desc}</p>
+        </div>)}
 
         <div className="lead-card">
           <div className="lead-kicker">SOULLY 64 사전 등록</div>
@@ -219,7 +268,23 @@ export default function App(){
           {leadStatus && <div className="lead-status">{leadStatus}</div>}
         </div>
 
-        <div className="coming"><span>COMING SOON</span><b>Skin 64 · {analysis.type64}</b></div>
+        <div className="skin64-card">
+          <div className="skin64-kicker">SOULLY SKIN 64</div>
+          <div className="skin64-code">{analysis.type64}</div>
+          <div className="skin64-grid">
+            {Object.keys(AXIS).map((axis,i)=>{
+              const letter=analysis.type64[i]
+              const [name,desc]=TYPE64_INFO[axis][letter]
+              return <div className="skin64-item" key={axis}>
+                <div className="skin64-letter">{letter}</div>
+                <div className="skin64-item-body">
+                  <b>{name}</b>
+                  <p>{desc}</p>
+                </div>
+              </div>
+            })}
+          </div>
+        </div>
         <button className="cta purple" onClick={()=>{setAnswers({});setChapterIndex(0);setBatchIndex(0);setScreen('landing');setContactValue('');setConsent(false);setLeadStatus('')}}>처음부터 다시 하기</button>
       </section>
     </main>
