@@ -215,6 +215,12 @@
 
 .cta:disabled{opacity:.55;cursor:not-allowed}
 .unlock-teaser p{margin-bottom:14px}
+.deep-upgrade-actions{display:grid;gap:9px}
+.cta-secondary{
+  width:100%;min-height:48px;border-radius:14px;font-weight:800;cursor:pointer;
+  background:#fff;border:1px solid #d7cdf0;color:#684fb9
+}
+.cta-secondary:hover{background:#faf8ff}
 .detail64-card p{margin-bottom:2px}
 
 

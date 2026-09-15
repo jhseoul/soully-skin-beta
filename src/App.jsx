@@ -520,9 +520,26 @@ export default function App(){
           <div className="lead-kicker">SOULLY SKIN 64</div>
           <h3>64가지 세부 피부 MBTI가 궁금하다면?</h3>
           <p>지금 결과는 4축 기반 QUICK 16이에요. 모공(CB)·열반응(HQ)까지 더한 DEEP 64 정밀진단을 받아보면 64타입 세부 결과를 확인할 수 있어요.</p>
-          <button className="cta purple" onClick={()=>{
-            setAnswers({});setChapterIndex(0);setBatchIndex(0);setPageIndex(0);setIntermission(null);setMode('deep');setScreen('journey')
-          }}>DEEP 64 정밀진단 받아보기</button>
+          <div className="deep-upgrade-actions">
+            <button className="cta purple" onClick={()=>{
+              // Keep existing answers — questions shared between QUICK and
+              // DEEP carry the same q.text key, so they land pre-filled.
+              // Jump straight into the test screen at the first page that
+              // still has an unanswered question, skipping the journey
+              // intro (redundant for someone who already started).
+              const deepQs = questions.filter(q=>q.modes.includes('deep'))
+              const pages = chunk(deepQs,4)
+              const isAnsweredIn = q => q.multiSelect
+                ? Array.isArray(answers[q.text]) && answers[q.text].length>0
+                : answers[q.text]!==undefined
+              let target = pages.findIndex(page=>page.some(q=>!isAnsweredIn(q)))
+              if(target===-1) target=0
+              setChapterIndex(0);setBatchIndex(0);setPageIndex(target);setIntermission(null);setMode('deep');setScreen('test')
+            }}>이어서 DEEP 64 진행하기</button>
+            <button className="cta-secondary" onClick={()=>{
+              setAnswers({});setChapterIndex(0);setBatchIndex(0);setPageIndex(0);setIntermission(null);setMode('deep');setScreen('journey')
+            }}>처음부터 새로 하기</button>
+          </div>
         </div>}
 
         {mode==='deep' && !showDetailed64Type && !show64Gate && <div className="lead-card unlock-teaser">
